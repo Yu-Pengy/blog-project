@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.tox
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git
+.mypy_cache
+.pytest_cache
+.hypothesis
+
+# 虚拟环境
+my_env/
+venv/
+env/
+ENV/
+
+# 开发工具
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 数据库文件（如果不想包含现有数据）
+*.db
+
+# 其他
+README.md
+.gitignore
+docker-compose.yml
