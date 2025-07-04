@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.PROD ? '/api' : 'http://localhost:5000/api';  // 开发环境
 
 class ApiService {
   async request(endpoint, options = {}) {
