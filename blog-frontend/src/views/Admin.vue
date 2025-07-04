@@ -13,7 +13,7 @@
     <nav class="navbar">
       <div class="nav-container">
         <div class="nav-brand">
-          <router-link to="/" class="brand-link">📝 博客系统</router-link>
+          <router-link to="/" class="brand-link">博客系统CI测试</router-link>
         </div>
         <div class="nav-menu">
           <span class="user-info">👤 {{ authStore.username }} (管理员)</span>
