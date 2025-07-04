@@ -1,5 +1,7 @@
 # Blog Application Deployment
 
+这是一个武大大一学生的第三学期项目，前端基于vue框架，后端基于flask框架，数据库采用sqlite，虽然代码基本都是ai写的，但是仍然是一个全栈 + DevOps的成功尝试
+
 ## 镜像缓存机制
 
 + 应用已经构造并上传到GHCR
