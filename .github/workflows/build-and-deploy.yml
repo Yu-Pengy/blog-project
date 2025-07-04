@@ -1,0 +1,36 @@
+# 简化版CI，假设Release已存在
+name: Quick Build and Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name:  Setup base images
+      run: |
+        # 下载Release中的镜像
+        gh release download v1.0.0-deps --pattern "*.tar" --dir docker-images
+        
+        # 加载镜像
+        for img in docker-images/*.tar; do
+          docker load -i "$img"
+        done
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name:  Login to GHCR
+      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+    
+    - name:  Build and push
+      run: |
+        # 构建并推送
+        docker build -t ghcr.io/yu-pengy/blog-backend:latest ./blog
+        docker build -t ghcr.io/yu-pengy/blog-frontend:latest ./blog-frontend
+        
+        docker push ghcr.io/yu-pengy/blog-backend:latest
+        docker push ghcr.io/yu-pengy/blog-frontend:latest
