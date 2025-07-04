@@ -4,15 +4,20 @@ name: Quick Build and Deploy
 on:
   push:
     branches: [ test ]
-
+  workflow_dispatch:  # 添加手动触发
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:  # 🔥 关键修复：添加权限设置
+      contents: read
+      packages: write
+      actions: read
+    
     steps:
     - uses: actions/checkout@v4
     
-    - name:  Setup base images
+    - name: 📦 Setup base images
       run: |
         # 下载Release中的镜像
         gh release download v1.0.0-deps --pattern "*.tar" --dir docker-images
@@ -24,10 +29,14 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
-    - name:  Login to GHCR
-      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+    - name: 🔐 Login to GHCR
+      uses: docker/login-action@v3  # 🔥 使用官方action替代命令
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     
-    - name:  Build and push
+    - name: 🏗️ Build and push
       run: |
         # 构建并推送
         docker build -t ghcr.io/yu-pengy/blog-backend:latest ./blog
