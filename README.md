@@ -110,3 +110,19 @@ docker-compose up -d --force-recreate
 + 自动构建docker镜像并部署到GHCR上
 + 通过docker-compose pull指令拉取最新镜像
 + docker-compose up -d启动即可看到最新更改后的镜像
+
+## 在线演示
+
+- **项目地址**：http://47.97.166.247
+- **后端API**：http://47.97.166.247/api
+- **健康检查**：http://47.97.166.247/api/health
+
+## 部署信息
+
+已成功部署到阿里云轻量应用服务器：
+- **服务器IP**：47.97.166.247
+- **操作系统**：Ubuntu 20.04
+- **运行状态**：24/7在线
+- **部署方式**：Docker + Docker Compose
+
+---
