@@ -1,54 +1,24 @@
 services:
-  # 后端服务
   blog-backend:
-    build: 
-      context: ./blog
-      dockerfile: Dockerfile
-    image: blog-backend:latest
+    image: ghcr.io/yu-pengy/blog-backend:latest
     container_name: blog-backend
     ports:
       - "5000:5000"
-    volumes:
-      - blog-uploads:/app/uploads  # 使用命名卷保存上传文件
-      - blog-database:/app/database  # 使用命名卷保存数据库
-    environment:
-      - FLASK_ENV=production
-      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
     networks:
       - blog-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
 
-  # 前端服务
   blog-frontend:
-    build: 
-      context: ./blog-frontend
-      dockerfile: Dockerfile
-    image: blog-frontend:latest
+    image: ghcr.io/yu-pengy/blog-frontend:latest
     container_name: blog-frontend
     ports:
-      - "80:80"    # 直接使用80端口，更方便访问
-      - "8080:80"  # 同时保留8080端口作为备用
+      - "80:80"
+    restart: unless-stopped
     depends_on:
-      blog-backend:
-        condition: service_healthy  # 等待后端健康检查通过
+      - blog-backend
     networks:
       - blog-network
-    restart: unless-stopped
 
-# 自定义网络，让容器间可以通过服务名进行通信
 networks:
   blog-network:
     driver: bridge
-
-# 命名卷，用于数据持久化
-volumes:
-  blog-uploads:
-    driver: local
-  blog-database:
-    driver: local
