@@ -3,6 +3,13 @@ name: SonarCloud Quality Check and Deploy
 on:
   push:
     branches: [ main ]
+    paths-ignore:
+      - 'README.md'
+      - 'docs/**'
+      - '*.md'
+      - 'LICENSE'
+      - '.gitignore'
+      - 'blog-deployment/**'
   workflow_dispatch:
 
 jobs:
