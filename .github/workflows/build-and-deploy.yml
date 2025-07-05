@@ -2,7 +2,7 @@ name: SonarCloud Quality Check and Deploy
 
 on:
   push:
-    branches: [ test ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
