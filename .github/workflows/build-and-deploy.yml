@@ -1,15 +1,96 @@
-# 简化版CI，假设Release已存在
-name: Quick Build and Deploy
+name: SonarQube Quality Check and Deploy
 
 on:
   push:
     branches: [ test ]
-  workflow_dispatch:  # 添加手动触发
+  workflow_dispatch:
 
 jobs:
-  build:
+  # 第一个job：SonarQube代码质量检测
+  sonarqube-check:
     runs-on: ubuntu-latest
-    permissions:  # 关键修复：添加权限设置
+    name: SonarQube Code Quality Analysis
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # SonarQube需要完整的git历史
+
+    # Python环境设置
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install Python dependencies
+      run: |
+        cd blog
+        pip install -r requirements.txt
+        pip install pytest pytest-cov coverage
+
+    # Node.js环境设置
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: blog-frontend/package-lock.json
+    
+    - name: Install Frontend dependencies
+      run: |
+        cd blog-frontend
+        npm ci
+
+    # 运行测试并生成覆盖率报告
+    - name: Run Python Tests
+      run: |
+        cd blog
+        # 如果有测试文件，运行测试
+        if [ -f "test_*.py" ] || [ -d "tests/" ]; then
+          pytest --cov=. --cov-report=xml --cov-report=html
+        else
+          echo "No Python tests found, creating dummy coverage report"
+          coverage run --source=. -m py_compile *.py
+          coverage xml
+        fi
+
+    - name: Run Frontend Tests  
+      run: |
+        cd blog-frontend
+        # 如果有测试配置，运行测试
+        if [ -f "vitest.config.js" ] || [ -f "jest.config.js" ]; then
+          npm run test:coverage || npm run test
+        else
+          echo "No frontend tests configured"
+        fi
+
+    # SonarQube分析
+    - name: SonarQube Scan
+      uses: sonarqube-quality-gate-action@master
+      with:
+        scanMetadataReportFile: target/sonar/report-task.txt
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+    - name: SonarQube Analysis
+      uses: sonarqube-quality-gate-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      with:
+        projectKey: "yu-pengy_blog-application"
+        organization: "yu-pengy"
+        sources: "."
+        exclusions: "**/node_modules/**,**/venv/**,**/*.pyc,**/migrations/**"
+        host: ${{ secrets.SONAR_HOST_URL }}
+
+  # 第二个job：构建部署（依赖SonarQube检测通过）
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    needs: sonarqube-check  # 依赖SonarQube检测
+    name: Build and Deploy
+    permissions:
       contents: read
       packages: write
       actions: read
@@ -19,10 +100,7 @@ jobs:
     
     - name: Setup base images
       run: |
-        # 下载Release中的镜像
         gh release download v1.0.0-deps --pattern "*.tar" --dir docker-images
-        
-        # 加载镜像
         for img in docker-images/*.tar; do
           docker load -i "$img"
         done
@@ -30,13 +108,13 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Login to GHCR
-      uses: docker/login-action@v3  # 使用官方action替代命令
+      uses: docker/login-action@v3
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
-        password: ${{ secrets.GHCR_TOKEN }}  # 改成PAT
+        password: ${{ secrets.GHCR_TOKEN }}
     
-    - name: Build and push
+     - name: Build and push
       run: |
         # 构建并推送
         docker build -t ghcr.io/yu-pengy/blog-backend:latest ./blog
@@ -44,3 +122,6 @@ jobs:
         
         docker push ghcr.io/yu-pengy/blog-backend:latest
         docker push ghcr.io/yu-pengy/blog-frontend:latest
+        
+        echo "构建完成！"
+        echo "SonarCloud报告：https://sonarcloud.io/project/overview?id=yu-pengy_blog-project"
