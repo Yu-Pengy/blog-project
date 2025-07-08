@@ -24,7 +24,6 @@ MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
 
-
 # 确保上传目录存在
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -92,7 +91,7 @@ def api_login():
                 'user': {
                     'username': username,
                     'is_admin': True,
-                    'avatar_url': avatar_url
+                    'avatar_url': get_full_avatar_url(avatar_url)
                 }
             })
         
@@ -113,7 +112,7 @@ def api_login():
                 'user': {
                     'username': username,
                     'is_admin': False,
-                    'avatar_url': avatar_url
+                    'avatar_url': get_full_avatar_url(avatar_url)
                 }
             })
         
@@ -182,7 +181,7 @@ def api_current_user():
                 'logged_in': True,
                 'username': username,
                 'is_admin': session.get('is_admin', False),
-                'avatar_url': avatar_url
+                'avatar_url': get_full_avatar_url(avatar_url)
             })
         else:
             return jsonify({'logged_in': False})
@@ -194,13 +193,25 @@ def api_current_user():
 
 @app.route('/api/posts', methods=['GET'])
 def api_posts():
-    """获取所有文章API"""
+    """获取所有文章API - 支持分页"""
     try:
+        # 分页参数
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 7))  # 默认每页7篇文章
         category_id = request.args.get('category_id')
+        
+        # 获取文章总数
         if category_id:
-            posts = get_all_posts(int(category_id))
+            total_posts = get_posts_count(int(category_id))
+            posts = get_posts_paginated(page=page, per_page=per_page, category_id=int(category_id))
         else:
-            posts = get_all_posts()
+            total_posts = get_posts_count()
+            posts = get_posts_paginated(page=page, per_page=per_page)
+        
+        # 计算分页信息
+        total_pages = (total_posts + per_page - 1) // per_page  # 向上取整
+        has_prev = page > 1
+        has_next = page < total_pages
         
         # 转换为字典列表并添加预览内容和作者头像
         posts_list = []
@@ -225,7 +236,19 @@ def api_posts():
             
             posts_list.append(post_dict)
         
-        return jsonify(posts_list)
+        return jsonify({
+            'posts': posts_list,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': total_posts,
+                'total_pages': total_pages,
+                'has_prev': has_prev,
+                'has_next': has_next,
+                'prev_page': page - 1 if has_prev else None,
+                'next_page': page + 1 if has_next else None
+            }
+        })
     except Exception as e:
         print(f"获取文章错误: {e}")
         return jsonify({'error': '获取文章失败'}), 500

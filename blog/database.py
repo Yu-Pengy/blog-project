@@ -147,6 +147,7 @@ def get_all_users():
     return users
 
 def delete_user(user_id):
+    """删除用户及其所有文章和评论"""
     try:
         conn = get_db_connection()
         user = conn.execute('SELECT username FROM users WHERE id = ?', (user_id,)).fetchone()
@@ -154,11 +155,21 @@ def delete_user(user_id):
             conn.close()
             return False
         
+        # 开始事务
+        # 1. 先删除该用户的所有评论
+        conn.execute('DELETE FROM comments WHERE author_id = ?', (user_id,))
+        
+        # 2. 删除该用户的所有文章
+        conn.execute('DELETE FROM posts WHERE author_id = ?', (user_id,))
+        
+        # 3. 最后删除用户
         conn.execute('DELETE FROM users WHERE id = ?', (user_id,))
+        
         conn.commit()
         conn.close()
         return True
-    except Exception:
+    except Exception as e:
+        print(f"删除用户失败: {e}")
         return False
 
 def get_user_by_id(user_id):
@@ -195,21 +206,62 @@ def get_all_posts(category_id=None):
     conn = get_db_connection()
     if category_id:
         posts = conn.execute('''
-            SELECT p.*, u.username as author, c.name as category_name
+            SELECT p.*, COALESCE(u.username, '已删除用户') as author, c.name as category_name
             FROM posts p
-            JOIN users u ON p.author_id = u.id
+            LEFT JOIN users u ON p.author_id = u.id
             LEFT JOIN categories c ON p.category_id = c.id
             WHERE p.category_id = ?
             ORDER BY p.created_at DESC
         ''', (category_id,)).fetchall()
     else:
         posts = conn.execute('''
-            SELECT p.*, u.username as author, c.name as category_name
+            SELECT p.*, COALESCE(u.username, '已删除用户') as author, c.name as category_name
             FROM posts p
-            JOIN users u ON p.author_id = u.id
+            LEFT JOIN users u ON p.author_id = u.id
             LEFT JOIN categories c ON p.category_id = c.id
             ORDER BY p.created_at DESC
         ''').fetchall()
+    conn.close()
+    return posts
+
+def get_posts_count(category_id=None):
+    """获取文章总数"""
+    conn = get_db_connection()
+    if category_id:
+        result = conn.execute('''
+            SELECT COUNT(*) FROM posts WHERE category_id = ?
+        ''', (category_id,)).fetchone()
+    else:
+        result = conn.execute('''
+            SELECT COUNT(*) FROM posts
+        ''').fetchone()
+    conn.close()
+    return result[0] if result else 0
+
+def get_posts_paginated(page=1, per_page=7, category_id=None):
+    """获取分页文章数据"""
+    conn = get_db_connection()
+    offset = (page - 1) * per_page
+    
+    if category_id:
+        posts = conn.execute('''
+            SELECT p.*, COALESCE(u.username, '已删除用户') as author, c.name as category_name
+            FROM posts p
+            LEFT JOIN users u ON p.author_id = u.id
+            LEFT JOIN categories c ON p.category_id = c.id
+            WHERE p.category_id = ?
+            ORDER BY p.created_at DESC
+            LIMIT ? OFFSET ?
+        ''', (category_id, per_page, offset)).fetchall()
+    else:
+        posts = conn.execute('''
+            SELECT p.*, COALESCE(u.username, '已删除用户') as author, c.name as category_name
+            FROM posts p
+            LEFT JOIN users u ON p.author_id = u.id
+            LEFT JOIN categories c ON p.category_id = c.id
+            ORDER BY p.created_at DESC
+            LIMIT ? OFFSET ?
+        ''', (per_page, offset)).fetchall()
     conn.close()
     return posts
 
@@ -237,9 +289,9 @@ def get_post_by_id(post_id):
     """根据ID获取文章详情"""
     conn = get_db_connection()
     post = conn.execute('''
-        SELECT p.*, u.username as author, c.name as category_name
+        SELECT p.*, COALESCE(u.username, '已删除用户') as author, c.name as category_name
         FROM posts p
-        JOIN users u ON p.author_id = u.id
+        LEFT JOIN users u ON p.author_id = u.id
         LEFT JOIN categories c ON p.category_id = c.id
         WHERE p.id = ?
     ''', (post_id,)).fetchone()

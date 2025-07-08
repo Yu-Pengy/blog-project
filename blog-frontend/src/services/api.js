@@ -12,8 +12,6 @@ class ApiService {
     };
 
     try {
-      console.log(`API请求: ${config.method || 'GET'} ${url}`);
-      console.log('请求cookies:', document.cookie);
       const response = await fetch(url, config);
       const data = await response.json();
       
@@ -65,21 +63,9 @@ class ApiService {
     };
 
     try {
-      console.log(`头像上传请求: POST ${url}`);
-      console.log('请求配置:', config);
-      console.log('文件信息:', file.name, file.size, file.type);
-      console.log('当前cookies:', document.cookie);
-      console.log('请求头信息:', {
-        credentials: config.credentials,
-        method: config.method
-      });
-      
       const response = await fetch(url, config);
-      console.log('响应状态:', response.status, response.statusText);
-      console.log('响应头:', [...response.headers.entries()]);
       
       const data = await response.json();
-      console.log('响应数据:', data);
       
       if (!response.ok) {
         throw new Error(data.message || data.error || '头像上传失败');
@@ -123,9 +109,17 @@ class ApiService {
   }
 
   // 文章相关
-  async getPosts(categoryId = null) {
-    const query = categoryId ? `?category_id=${categoryId}` : '';
-    return this.request(`/posts${query}`);
+  async getPosts(categoryId = null, page = 1, perPage = 7) {
+    const params = new URLSearchParams();
+    if (categoryId) params.append('category_id', categoryId);
+    if (page) params.append('page', page);
+    if (perPage) params.append('per_page', perPage);
+    
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const url = `/posts${query}`;
+    
+    const result = await this.request(url);
+    return result;
   }
 
   async getPost(id) {
@@ -198,34 +192,25 @@ class ApiService {
 
   async getAdminComments() {
     try {
-      console.log('正在调用管理员评论API: /admin/comments');
       const result = await this.request('/admin/comments');
-      console.log('管理员评论API返回结果:', result);
-      console.log('返回结果类型:', typeof result);
-      console.log('是否为数组:', Array.isArray(result));
       
       // 如果返回的是对象，可能评论数据在某个属性中
       if (result && typeof result === 'object') {
-        console.log('返回对象的属性:', Object.keys(result));
         
         // 常见的返回格式：{ data: [...] } 或 { comments: [...] }
         if (result.data && Array.isArray(result.data)) {
-          console.log('从 result.data 中获取评论数组');
           return result.data;
         }
         if (result.comments && Array.isArray(result.comments)) {
-          console.log('从 result.comments 中获取评论数组');
           return result.comments;
         }
         if (result.results && Array.isArray(result.results)) {
-          console.log('从 result.results 中获取评论数组');
           return result.results;
         }
       }
       
       // 如果直接是数组，直接返回
       if (Array.isArray(result)) {
-        console.log('返回结果直接是数组');
         return result;
       }
       

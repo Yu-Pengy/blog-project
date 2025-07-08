@@ -303,18 +303,9 @@ export default {
       this.loading = true
       try {
         this.comments = await ApiService.getComments(this.postId)
-        // 调试：检查评论数据结构
-        console.log('评论数据：', this.comments)
-        
-        // 检查第一条评论的所有字段
-        if (this.comments.length > 0) {
-          console.log('第一条评论的所有字段：', Object.keys(this.comments[0]))
-          console.log('第一条评论完整数据：', this.comments[0])
-        }
         
         // 修复可能缺失的字段
         this.comments.forEach((comment, index) => {
-          console.log(`评论${index + 1}的原始数据：`, comment)
           
           // 设置用户名字段
           if (!comment.username) {
@@ -348,12 +339,9 @@ export default {
             }
           }
           
-          console.log(`评论${index + 1}最终用户名：${comment.username}, 头像：${comment.author_avatar}`)
-          
           // 修复回复数据
           if (comment.replies && Array.isArray(comment.replies)) {
             comment.replies.forEach((reply, replyIndex) => {
-              console.log(`回复${replyIndex + 1}的原始数据：`, reply)
               
               // 设置用户名字段
               if (!reply.username) {
@@ -387,7 +375,6 @@ export default {
                 }
               }
               
-              console.log(`回复${replyIndex + 1}最终用户名：${reply.username}, 头像：${reply.author_avatar}`)
             })
           }
         })
@@ -557,13 +544,6 @@ export default {
         
         const now = new Date()
         const diff = now - date
-
-        console.log('时间处理:', {
-          原始时间: dateString,
-          调整后时间: date.toLocaleString('zh-CN'),
-          当前时间: now.toLocaleString('zh-CN'),
-          时间差小时: Math.round(diff / 3600000 * 100) / 100
-        })
 
         // 1分钟内
         if (diff < 60000) {

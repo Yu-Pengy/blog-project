@@ -152,16 +152,16 @@
         <!-- 分类筛选 -->
         <div class="filters" v-if="!isSearchMode">
           <button 
-            @click="selectedCategory = null"
+            @click="onCategoryChange(null)"
             :class="{ active: selectedCategory === null }"
             class="filter-btn"
           >
-            全部文章 ({{ posts.length }})
+            全部文章 ({{ pagination && pagination.total ? pagination.total : 0 }})
           </button>
           <button 
             v-for="category in categories" 
             :key="category.id"
-            @click="selectedCategory = category.id"
+            @click="onCategoryChange(category.id)"
             :class="{ active: selectedCategory === category.id }"
             class="filter-btn"
           >
@@ -216,6 +216,54 @@
                 <button class="read-more-btn">阅读全文 →</button>
               </div>
             </article>
+          </div>
+          
+
+          
+          <!-- 分页组件 -->
+          <div v-if="!isSearchMode && pagination && pagination.total_pages > 1" class="pagination-wrapper">
+            <div class="pagination">
+              <!-- 上一页按钮 -->
+              <button 
+                @click="prevPage" 
+                :disabled="!pagination.has_prev"
+                class="pagination-btn prev-btn"
+                :class="{ disabled: !pagination.has_prev }"
+              >
+                ← 上一页
+              </button>
+              
+              <!-- 页码按钮 -->
+              <div class="pagination-numbers">
+                <!-- 当前页面附近的页码 -->
+                <template v-for="page in getPageNumbers()" :key="page">
+                  <button 
+                    v-if="typeof page === 'number'"
+                    @click="goToPage(page)"
+                    :class="{ active: page === pagination.page }"
+                    class="pagination-number"
+                  >
+                    {{ page }}
+                  </button>
+                  <span v-else class="pagination-ellipsis">{{ page }}</span>
+                </template>
+              </div>
+              
+              <!-- 下一页按钮 -->
+              <button 
+                @click="nextPage" 
+                :disabled="!pagination.has_next"
+                class="pagination-btn next-btn"
+                :class="{ disabled: !pagination.has_next }"
+              >
+                下一页 →
+              </button>
+            </div>
+            
+            <!-- 分页信息 -->
+            <div class="pagination-info">
+              共 {{ pagination.total }} 篇文章，第 {{ pagination.page }} / {{ pagination.total_pages }} 页
+            </div>
           </div>
         </div>
       </div>
@@ -368,6 +416,21 @@ export default {
       categories: [],
       selectedCategory: null,
       loading: false,
+      // 分页相关
+      currentPage: 1,
+      perPage: 7,
+      totalPages: 1,
+      totalPosts: 0,
+      pagination: {
+        page: 1,
+        per_page: 7,
+        total: 0,
+        total_pages: 1,
+        has_prev: false,
+        has_next: false,
+        prev_page: null,
+        next_page: null
+      },
       // 搜索相关
       searchKeyword: '',
       currentSearchKeyword: '',
@@ -455,11 +518,8 @@ export default {
         return this.searchResults
       }
       
-      // 否则按分类筛选
-      if (this.selectedCategory === null) {
-        return this.posts
-      }
-      return this.posts.filter(post => post.category_id === this.selectedCategory)
+      // 对于普通模式，直接返回posts，因为分页和分类筛选已由后端处理
+      return this.posts
     }
   },
   async created() {
@@ -505,19 +565,30 @@ export default {
   methods: {
     async loadData() {
       this.loading = true
+      
       try {
-        const [postsData, categoriesData] = await Promise.all([
-          ApiService.getPosts(),
-          ApiService.getCategories()
-        ])
-        this.posts = postsData
-        this.categories = categoriesData
+        const postsPromise = ApiService.getPosts(this.selectedCategory, this.currentPage, this.perPage)
+        const categoriesPromise = ApiService.getCategories()
         
-        // 调试：检查文章数据结构
-        if (postsData.length > 0) {
-          console.log('文章数据样例:', postsData[0])
-          console.log('是否包含author_avatar:', 'author_avatar' in postsData[0])
+        const [postsResponse, categoriesData] = await Promise.all([
+          postsPromise,
+          categoriesPromise
+        ])
+        
+        // 处理分页响应
+        if (postsResponse.posts && postsResponse.pagination) {
+          this.posts = postsResponse.posts
+          this.pagination = postsResponse.pagination
+          this.totalPages = postsResponse.pagination.total_pages
+          this.totalPosts = postsResponse.pagination.total
+          // 确保当前页码同步
+          this.currentPage = postsResponse.pagination.page
+        } else {
+          // 兼容旧版本API响应格式
+          this.posts = postsResponse
         }
+        
+        this.categories = categoriesData
       } catch (error) {
         console.error('加载数据失败:', error)
       } finally {
@@ -546,16 +617,12 @@ export default {
       this.currentSearchKeyword = this.searchKeyword.trim()
       
       try {
-        console.log('开始搜索，关键词:', this.currentSearchKeyword)
-        
         // 调用搜索API
         const response = await ApiService.get('/search', {
           params: {
             keyword: this.currentSearchKeyword
           }
         })
-        
-        console.log('搜索API响应:', response)
         
         // 处理不同的响应格式
         let posts = []
@@ -569,22 +636,15 @@ export default {
           posts = response
         }
         
-        console.log('解析到的文章列表:', posts)
-        
         this.searchResults = posts
         this.isSearchMode = true
         this.searchMethod = 'api'
-        
-        if (posts.length === 0) {
-          console.log('未找到搜索结果')
-        }
         
       } catch (error) {
         console.error('搜索失败:', error)
         
         // 更详细的错误处理
         if (error.message.includes('404') || error.message.includes('Not Found')) {
-          console.log('后端搜索API不可用，使用前端搜索降级方案')
           this.searchResults = this.performLocalSearch(this.currentSearchKeyword)
           this.isSearchMode = true
           this.searchMethod = 'local'
@@ -594,7 +654,6 @@ export default {
           this.isSearchMode = false
           this.searchMethod = ''
         } else {
-          console.log('搜索API出错，尝试前端搜索降级方案')
           this.searchResults = this.performLocalSearch(this.currentSearchKeyword)
           this.isSearchMode = true
           this.searchMethod = 'local'
@@ -629,6 +688,79 @@ export default {
       this.isSearchMode = false
       this.searchMethod = ''
       this.selectedCategory = null // 重置分类筛选
+    },
+    
+    // 分页相关方法
+    async changePage(page) {
+      const maxPages = this.pagination ? this.pagination.total_pages : 1
+      if (page !== this.currentPage && page >= 1 && page <= maxPages) {
+        this.currentPage = page
+        await this.loadData()
+        // 滚动到顶部
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
+    },
+    
+    async prevPage() {
+      if (this.pagination && this.pagination.has_prev) {
+        await this.changePage(this.pagination.prev_page || this.currentPage - 1)
+      }
+    },
+    
+    async nextPage() {
+      if (this.pagination && this.pagination.has_next) {
+        await this.changePage(this.pagination.next_page || this.currentPage + 1)
+      }
+    },
+    
+    async goToPage(page) {
+      await this.changePage(page)
+    },
+    
+    // 生成页码列表
+    getPageNumbers() {
+      if (!this.pagination || !this.pagination.total_pages) {
+        return [1]
+      }
+      
+      const pages = []
+      const total = this.pagination.total_pages
+      const current = this.pagination.page
+      
+      if (total <= 7) {
+        // 如果总页数小于等于7，显示所有页码
+        for (let i = 1; i <= total; i++) {
+          pages.push(i)
+        }
+      } else {
+        // 复杂分页逻辑
+        if (current <= 4) {
+          // 当前页在前4页
+          for (let i = 1; i <= 5; i++) {
+            pages.push(i)
+          }
+          pages.push('...')
+          pages.push(total)
+        } else if (current >= total - 3) {
+          // 当前页在后4页
+          pages.push(1)
+          pages.push('...')
+          for (let i = total - 4; i <= total; i++) {
+            pages.push(i)
+          }
+        } else {
+          // 当前页在中间
+          pages.push(1)
+          pages.push('...')
+          for (let i = current - 1; i <= current + 1; i++) {
+            pages.push(i)
+          }
+          pages.push('...')
+          pages.push(total)
+        }
+      }
+      
+      return pages
     },
     
     formatDate(dateString) {
@@ -761,10 +893,6 @@ export default {
         return
       }
       
-      console.log('开始上传头像...')
-      console.log('当前登录状态:', this.authStore.isLoggedIn)
-      console.log('当前用户:', this.authStore.user)
-      
       // 上传前先检查一下当前的登录状态
       try {
         await this.authStore.checkAuth()
@@ -784,7 +912,6 @@ export default {
       
       try {
         const result = await this.authStore.uploadAvatar(this.avatarFile)
-        console.log('头像上传结果:', result)
         
         if (result.success) {
           alert('头像上传成功！')
@@ -798,6 +925,13 @@ export default {
       } finally {
         this.avatarUploading = false
       }
+    },
+    
+    // 分类筛选方法
+    async onCategoryChange(categoryId) {
+      this.selectedCategory = categoryId
+      this.currentPage = 1 // 重置到第一页
+      await this.loadData()
     },
   },
   watch: {
@@ -2258,6 +2392,169 @@ export default {
 .dark-mode .file-drop-zone:hover {
   border-color: #5dade2;
   background: rgba(93, 173, 226, 0.1);
+}
+
+/* 分页组件样式 */
+.pagination-wrapper {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-color, rgba(0, 0, 0, 0.1));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pagination-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.2));
+  border-radius: 8px;
+  background: var(--bg-primary, #fff);
+  color: var(--text-primary, #2c3e50);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.pagination-btn:hover:not(.disabled) {
+  background: var(--primary-color, #667eea);
+  color: white;
+  border-color: var(--primary-color, #667eea);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.pagination-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--bg-secondary, #f8f9fa);
+  color: var(--text-secondary, #6c757d);
+}
+
+.pagination-numbers {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 16px;
+}
+
+.pagination-number {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.2));
+  border-radius: 8px;
+  background: var(--bg-primary, #fff);
+  color: var(--text-primary, #2c3e50);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pagination-number:hover {
+  background: var(--primary-color, #667eea);
+  color: white;
+  border-color: var(--primary-color, #667eea);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.pagination-number.active {
+  background: var(--primary-color, #667eea);
+  color: white;
+  border-color: var(--primary-color, #667eea);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.pagination-ellipsis {
+  padding: 0 8px;
+  color: var(--text-secondary, #6c757d);
+  font-size: 14px;
+}
+
+.pagination-info {
+  color: var(--text-secondary, #6c757d);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* 深色模式下的分页样式 */
+.dark-mode .pagination-wrapper {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .pagination-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #ecf0f1;
+}
+
+.dark-mode .pagination-btn:hover:not(.disabled) {
+  background: #5dade2;
+  border-color: #5dade2;
+  box-shadow: 0 4px 12px rgba(93, 173, 226, 0.3);
+}
+
+.dark-mode .pagination-btn.disabled {
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(236, 240, 241, 0.5);
+}
+
+.dark-mode .pagination-number {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #ecf0f1;
+}
+
+.dark-mode .pagination-number:hover {
+  background: #5dade2;
+  border-color: #5dade2;
+  box-shadow: 0 4px 12px rgba(93, 173, 226, 0.3);
+}
+
+.dark-mode .pagination-number.active {
+  background: #5dade2;
+  border-color: #5dade2;
+  box-shadow: 0 4px 12px rgba(93, 173, 226, 0.3);
+}
+
+.dark-mode .pagination-ellipsis,
+.dark-mode .pagination-info {
+  color: rgba(236, 240, 241, 0.7);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .pagination-numbers {
+    margin: 0 8px;
+  }
+  
+  .pagination-btn {
+    font-size: 12px;
+    padding: 6px 12px;
+  }
+  
+  .pagination-number {
+    width: 36px;
+    height: 36px;
+    font-size: 12px;
+  }
 }
 
 .dark-mode .drop-zone-content p {

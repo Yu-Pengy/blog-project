@@ -19,7 +19,6 @@ export const useAuthStore = defineStore('auth', {
       this.loading = true
       try {
         const response = await ApiService.login(username, password)
-        console.log('登录API响应:', response)
         
         if (response.success) {
           this.user = {
@@ -28,7 +27,6 @@ export const useAuthStore = defineStore('auth', {
             avatar: response.user.avatar_url || null  // 使用avatar_url字段
           }
           this.isLoggedIn = true
-          console.log('登录后用户信息:', this.user)
           return { success: true, message: response.message }
         }
         return { success: false, message: response.message }
@@ -65,7 +63,6 @@ export const useAuthStore = defineStore('auth', {
     async checkAuth() {
       try {
         const response = await ApiService.getCurrentUser()
-        console.log('checkAuth API响应:', response)
         
         if (response.logged_in) {
           this.user = {
@@ -74,7 +71,6 @@ export const useAuthStore = defineStore('auth', {
             avatar: response.avatar_url || null  // 使用avatar_url字段
           }
           this.isLoggedIn = true
-          console.log('用户信息更新后:', this.user)
         } else {
           this.user = null
           this.isLoggedIn = false
@@ -87,18 +83,13 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async uploadAvatar(file) {
-      console.log('Auth store: 开始上传头像')
-      console.log('Auth store: 当前用户状态:', this.user)
-      console.log('Auth store: 登录状态:', this.isLoggedIn)
       
       try {
         const response = await ApiService.uploadAvatar(file)
-        console.log('Auth store: API响应:', response)
         
         if (response.success) {
           // 更新用户头像信息
           if (this.user && response.data) {
-            console.log('Auth store: 更新用户头像:', response.data.avatar_url)
             this.user.avatar = response.data.avatar_url
           }
           return { 

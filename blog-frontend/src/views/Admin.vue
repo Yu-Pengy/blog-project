@@ -457,7 +457,6 @@ export default {
         // 尝试获取所有评论
         try {
           this.comments = await ApiService.getAdminComments()
-          console.log('成功从管理员API获取评论:', this.comments.length, '条')
         } catch (apiError) {
           if (apiError.message === 'ADMIN_COMMENTS_API_NOT_FOUND') {
             console.warn('后端没有 /admin/comments API，使用替代方案')
@@ -468,9 +467,6 @@ export default {
           
           // 使用替代方案：通过文章获取评论
           this.comments = await this.getAllCommentsFromPosts()
-          if (this.comments.length > 0) {
-            console.log('通过文章API获取到评论:', this.comments.length, '条')
-          }
         }
       } catch (error) {
         this.showMessage('加载评论数据失败：' + error.message, 'error')

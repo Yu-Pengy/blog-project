@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分页API测试</title>
+</head>
+<body>
+    <h1>分页API测试</h1>
+    <div id="result"></div>
+
+    <script>
+        async function testPagination() {
+            try {
+                const response = await fetch('http://localhost:5000/api/posts?page=1&per_page=7');
+                const data = await response.json();
+                document.getElementById('result').innerHTML = `
+                    <h2>API 响应成功！</h2>
+                    <p><strong>总文章数：</strong> ${data.pagination ? data.pagination.total : '未知'}</p>
+                    <p><strong>总页数：</strong> ${data.pagination ? data.pagination.total_pages : '未知'}</p>
+                    <p><strong>当前页：</strong> ${data.pagination ? data.pagination.page : '未知'}</p>
+                    <p><strong>每页文章数：</strong> ${data.pagination ? data.pagination.per_page : '未知'}</p>
+                    <p><strong>文章列表长度：</strong> ${data.posts ? data.posts.length : '未知'}</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                document.getElementById('result').innerHTML = `
+                    <h2 style="color: red;">API 调用失败</h2>
+                    <p>错误信息: ${error.message}</p>
+                `;
+            }
+        }
+
+        testPagination();
+    </script>
+</body>
+</html>
