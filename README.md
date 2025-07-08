@@ -33,6 +33,7 @@ graph TD
 | **CI/CD** | GitHub Actions | 持续集成，自动化部署流水线 |
 | **代码质量** | SonarCloud | 静态代码分析，安全漏洞检测 |
 | **镜像仓库** | GitHub Container Registry | 容器镜像版本管理，分发 |
+| **API测试** | Apifox | 测试API的健壮性 |
 
 ## CI/CD流程
 
