@@ -17,7 +17,7 @@ CORS(app, supports_credentials=True, resources={
 app.secret_key = 'Sf8x#mK9$vL2@nQ7*pR4!wE6&tY1+uI3'  # 用于session加密
 
 # 文件上传配置
-UPLOAD_FOLDER = 'uploads'
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
@@ -85,8 +85,6 @@ def api_login():
             
             # 处理头像URL
             avatar_url = dict(user).get('avatar_url') if user else None
-            if avatar_url and not avatar_url.startswith('http'):
-                avatar_url = f"http://localhost:5000{avatar_url}"
             
             return jsonify({
                 'success': True,
@@ -108,8 +106,6 @@ def api_login():
             
             # 处理头像URL
             avatar_url = dict(user).get('avatar_url') if user else None
-            if avatar_url and not avatar_url.startswith('http'):
-                avatar_url = f"http://localhost:5000{avatar_url}"
             
             return jsonify({
                 'success': True,
@@ -181,9 +177,6 @@ def api_current_user():
             avatar_url = None
             if user:
                 avatar_url = dict(user).get('avatar_url')
-                # 如果头像URL是相对路径，转换为完整URL
-                if avatar_url and not avatar_url.startswith('http'):
-                    avatar_url = f"http://localhost:5000{avatar_url}"
             
             return jsonify({
                 'logged_in': True,
@@ -224,8 +217,6 @@ def api_posts():
                 author_info = get_user_by_username(post_dict['author'])
                 if author_info:
                     avatar_url = dict(author_info).get('avatar_url')
-                    if avatar_url and not avatar_url.startswith('http'):
-                        avatar_url = f"http://localhost:5000{avatar_url}"
                     post_dict['author_avatar'] = avatar_url
                 else:
                     post_dict['author_avatar'] = None
@@ -257,8 +248,6 @@ def api_post_detail(post_id):
             author_info = get_user_by_username(post_dict['author'])
             if author_info:
                 avatar_url = dict(author_info).get('avatar_url')
-                if avatar_url and not avatar_url.startswith('http'):
-                    avatar_url = f"http://localhost:5000{avatar_url}"
                 post_dict['author_avatar'] = avatar_url
             else:
                 post_dict['author_avatar'] = None
@@ -382,8 +371,6 @@ def api_my_posts():
                 author_info = get_user_by_username(post_dict['author'])
                 if author_info:
                     avatar_url = dict(author_info).get('avatar_url')
-                    if avatar_url and not avatar_url.startswith('http'):
-                        avatar_url = f"http://localhost:5000{avatar_url}"
                     post_dict['author_avatar'] = avatar_url
                 else:
                     post_dict['author_avatar'] = None
@@ -430,8 +417,6 @@ def api_category_posts(category_id):
                 author_info = get_user_by_username(post_dict['author'])
                 if author_info:
                     avatar_url = dict(author_info).get('avatar_url')
-                    if avatar_url and not avatar_url.startswith('http'):
-                        avatar_url = f"http://localhost:5000{avatar_url}"
                     post_dict['author_avatar'] = avatar_url
                 else:
                     post_dict['author_avatar'] = None
@@ -491,8 +476,6 @@ def api_search_posts():
                 author_info = get_user_by_username(post_dict['author'])
                 if author_info:
                     avatar_url = dict(author_info).get('avatar_url')
-                    if avatar_url and not avatar_url.startswith('http'):
-                        avatar_url = f"http://localhost:5000{avatar_url}"
                     post_dict['author_avatar'] = avatar_url
                 else:
                     post_dict['author_avatar'] = None
@@ -606,8 +589,6 @@ def api_advanced_search():
                 author_info = get_user_by_username(post_dict['author'])
                 if author_info:
                     avatar_url = dict(author_info).get('avatar_url')
-                    if avatar_url and not avatar_url.startswith('http'):
-                        avatar_url = f"http://localhost:5000{avatar_url}"
                     post_dict['author_avatar'] = avatar_url
                 else:
                     post_dict['author_avatar'] = None
@@ -646,8 +627,6 @@ def api_admin_posts():
                 author_info = get_user_by_username(post_dict['author'])
                 if author_info:
                     avatar_url = dict(author_info).get('avatar_url')
-                    if avatar_url and not avatar_url.startswith('http'):
-                        avatar_url = f"http://localhost:5000{avatar_url}"
                     post_dict['author_avatar'] = avatar_url
                 else:
                     post_dict['author_avatar'] = None
@@ -773,8 +752,6 @@ def api_get_comments(post_id):
                 author_info = get_user_by_username(comment_data['author'])
                 if author_info:
                     avatar_url = dict(author_info).get('avatar_url')
-                    if avatar_url and not avatar_url.startswith('http'):
-                        avatar_url = f"http://localhost:5000{avatar_url}"
                     comment_data['author_avatar'] = avatar_url
                 else:
                     comment_data['author_avatar'] = None
@@ -844,8 +821,6 @@ def api_create_comment(post_id):
                 author_info = get_user_by_username(comment_data['author'])
                 if author_info:
                     avatar_url = dict(author_info).get('avatar_url')
-                    if avatar_url and not avatar_url.startswith('http'):
-                        avatar_url = f"http://localhost:5000{avatar_url}"
                     comment_data['author_avatar'] = avatar_url
                 else:
                     comment_data['author_avatar'] = None
@@ -964,8 +939,6 @@ def api_get_user_profile():
         print(f"用户 {username} 的头像URL: {avatar_url}")
         
         # 如果头像URL是相对路径，转换为完整URL
-        if avatar_url and not avatar_url.startswith('http'):
-            avatar_url = f"http://localhost:5000{avatar_url}"
             print(f"完整头像URL: {avatar_url}")
         
         return jsonify({
@@ -1152,12 +1125,11 @@ def api_upload_user_avatar():
             
             if result:
                 # 返回完整URL给前端
-                full_avatar_url = f"http://localhost:5000{avatar_url}"
                 return jsonify({
                     'success': True,
                     'message': '头像上传成功',
                     'data': {
-                        'avatar_url': full_avatar_url
+                        'avatar_url': avatar_url
                     }
                 })
             else:
@@ -1191,8 +1163,6 @@ def api_get_user_profile_by_username(username):
         
         # 只返回公开信息
         avatar_url = dict(user).get('avatar_url')
-        if avatar_url and not avatar_url.startswith('http'):
-            avatar_url = f"http://localhost:5000{avatar_url}"
             
         return jsonify({
             'success': True,

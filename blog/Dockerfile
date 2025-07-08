@@ -15,12 +15,12 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # 复制依赖文件
-COPY requirments.txt .
+COPY requirements.txt .
 
 # 安装Python依赖
-RUN pip install --no-cache-dir --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple && \
-    pip install --no-cache-dir -r requirments.txt -i https://pypi.tuna.tsinghua.edu.cn/simple && \
-    pip install gunicorn -i https://pypi.tuna.tsinghua.edu.cn/simple
+RUN pip install --no-cache-dir --upgrade pip --timeout 120 -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com && \
+    pip install --no-cache-dir -r requirements.txt --timeout 120 -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com && \
+    pip install gunicorn --timeout 120 -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
 
 # 复制项目文件
 COPY . .
