@@ -1,5 +1,5 @@
-# 使用官方Python镜像
-FROM python:3.11-slim
+# 使用阿里云Python镜像 - 适用于国内网络环境
+FROM registry.cn-hangzhou.aliyuncs.com/library/python:3.11-slim
 
 # 设置环境变量
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -8,8 +8,9 @@ ENV PYTHONUNBUFFERED=1
 # 设置工作目录
 WORKDIR /app
 
-# 更新包管理器并安装基本工具
-RUN apt-get update && apt-get install -y \
+# 更新包管理器并安装基本工具 - 使用国内源
+RUN sed -i 's@http://deb.debian.org@http://mirrors.aliyun.com@g' /etc/apt/sources.list && \
+    apt-get update && apt-get install -y \
     gcc \
     curl \
     && rm -rf /var/lib/apt/lists/*
@@ -17,10 +18,12 @@ RUN apt-get update && apt-get install -y \
 # 复制依赖文件
 COPY requirements.txt .
 
-# 安装Python依赖
-RUN pip install --no-cache-dir --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple && \
-    pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple && \
-    pip install gunicorn -i https://pypi.tuna.tsinghua.edu.cn/simple
+# 安装Python依赖 - 使用阿里云pip源
+RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/ && \
+    pip config set global.trusted-host mirrors.aliyun.com && \
+    pip install --no-cache-dir --upgrade pip --timeout 120 && \
+    pip install --no-cache-dir -r requirements.txt --timeout 120 && \
+    pip install gunicorn --timeout 120
 
 # 复制项目文件
 COPY . .
