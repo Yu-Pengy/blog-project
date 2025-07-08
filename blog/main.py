@@ -32,6 +32,21 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def get_full_avatar_url(avatar_url):
+    """处理头像URL，返回适合前端使用的URL"""
+    if not avatar_url:
+        return None
+    
+    # 如果已经是完整URL，直接返回
+    if avatar_url.startswith('http://') or avatar_url.startswith('https://'):
+        return avatar_url
+    
+    # 如果是文件名，转换为静态文件路径
+    if not avatar_url.startswith('/static/'):
+        avatar_url = f'/static/uploads/{avatar_url}'
+    
+    return avatar_url
+
 # Markdown渲染函数
 def render_markdown(text):
     """将Markdown文本转换为HTML"""
