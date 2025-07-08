@@ -938,9 +938,6 @@ def api_get_user_profile():
         avatar_url = dict(user).get('avatar_url')
         print(f"用户 {username} 的头像URL: {avatar_url}")
         
-        # 如果头像URL是相对路径，转换为完整URL
-            print(f"完整头像URL: {avatar_url}")
-        
         return jsonify({
             'success': True,
             'data': {
